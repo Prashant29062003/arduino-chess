@@ -34,274 +34,144 @@ The system visualizes every chess move from your **physical chessboard** (via Ar
 ```
 chess-and-arduino/
 ├── backend/
-│   ├── server.js          # Express + WebSocket server
-│   ├── serial-bridge.js   # Optional: Arduino Serial bridge script
-│   ├── package.json
-│
-├── frontend/
-│   ├── public/
-│   │   └── pieces/        # Custom chess piece SVGs (wP.svg, bK.svg, etc.)
-│   ├── src/
-│   │   └── App.jsx        # React app displaying chessboard + WebSocket logic
-│   ├── package.json
-│
-└── README.md
-```
+# ♟ Arduino Chessboard Live
+
+A full-stack real-time chessboard that integrates a physical Arduino-based board with a Node.js backend and a React frontend. The backend is authoritative (uses `chess.js`) and broadcasts game updates to connected frontends via WebSocket.
+
+This README covers local setup, env variables, running the serial bridge or simulator, and short deployment notes.
 
 ---
 
-## ⚙️ Backend Setup
+## 🚀 Quick Start
+
+- Backend (API + WebSocket)
 
 ```bash
 cd backend
 npm install
-node server.js
+# use .env for configuration (see backend/.env.sample)
+npm run dev          # or `node server.js` for production
 ```
 
-Output:
-
-```
-🚀 Server running on port 4000
-🟢 Client connected
-```
-
----
-
-## ⚙️ Frontend Setup
+- Frontend (Vite + React)
 
 ```bash
 cd frontend
 npm install
 npm run dev
+# open http://localhost:5173
 ```
-
-Then open 👉 **[http://localhost:5173](http://localhost:5173)**
 
 ---
 
-## 🔌 API Reference
+## **Environment**
 
-### ♙ White move
+- `backend/.env.sample` contains recommended variables: `PORT`, `API_KEY` (optional for securing Arduino/bridge), `BACKEND_HOST`, `SERIAL_PORT`, `SERIAL_BAUD`, `PAIR_WINDOW_MS`.
+- `frontend/.env.sample` shows `VITE_BACKEND_HTTP` and `VITE_BACKEND_WS` for configuring the client.
+
+Copy samples to actual env files locally and fill secrets:
 
 ```bash
-POST /white/move
-Content-Type: application/json
-{
-  "from": "e2",
-  "to": "e4"
-}
+cp backend/.env.sample backend/.env
+cp frontend/.env.sample frontend/.env
 ```
 
-### ♟ Black move
+Do NOT commit `.env` files (they are excluded by `.gitignore`).
+
+---
+
+## **Project Layout**
+
+```
+/
+├── arduino/        # Arduino sketch(s)
+├── backend/        # Node.js server, serial-bridge, simulator
+├── frontend/       # React app (Vite)
+├── .gitignore
+└── README.md
+```
+
+---
+
+## **API (quick reference)**
+
+- POST `/white/move`  { from: "e2", to: "e4" }
+- POST `/black/move`  { from: "e7", to: "e5" }
+- POST `/reset`
+- GET  `/health`      returns `{ status, clients, port, turn }`
+- POST `/arduino/event` raw Arduino events: `{ type: 'removed'|'placed', square: 'E2', piece: 'Pawn' }`
+
+All endpoints expect JSON and respond with the updated FEN and move metadata on success.
+
+---
+
+## **Running the Serial Bridge & Simulator**
+
+- Serial bridge (reads Arduino over USB and posts events/moves to backend):
 
 ```bash
-POST /black/move
-Content-Type: application/json
-{
-  "from": "e7",
-  "to": "e5"
-}
+cd backend
+# Example: node serial-bridge.js --port COM3 --baud 9600 --host http://localhost:4000
+node serial-bridge.js --port COM3 --baud 9600 --host http://localhost:4000
 ```
 
-### ♻️ Reset
+- Simulator (post fake removed/placed events or execute a move):
 
 ```bash
-POST /reset
+cd backend
+# Simulate a removal and placement and execute the move against the server
+node simulate-arduino.js --removed D7 --placed D6 --piece Pawn --execute
+
+# Send a single raw event
+node simulate-arduino.js --event "placed,E2,Pawn"
 ```
 
-### ❤️ Health check
+Note: If you configure `API_KEY` in `backend/.env`, update the bridge and simulator to send the `x-api-key` header (recommended for public exposure).
+
+---
+
+## **Git / Repo Guidance**
+
+- This project works well as a single repository (monorepo) containing `arduino`, `backend`, and `frontend` folders. It's simple for local dev and smaller teams.
+- Keep secrets out of Git: commit `.env.sample` but add `.env` to `.gitignore`.
+- Useful root `.gitignore` entries: `node_modules/`, `dist/`, `.env`, editor folders, and compiled Arduino artifacts.
+
+Example quick push (already initialized):
 
 ```bash
-GET /health
+git add .
+git commit -m "Initial import"
+git remote add origin git@github.com:<user>/<repo>.git
+git push -u origin main
 ```
+
+If you ever need to split a folder into its own repository later, use `git subtree split` or `git filter-repo`.
 
 ---
 
-## 🧩 WebSocket Events
+## **Deployment Notes**
 
-| Event             | Description                                              |
-| ----------------- | -------------------------------------------------------- |
-| `{type: "move"}`  | A valid move has been made (includes full FEN and state) |
-| `{type: "reset"}` | Board reset signal                                       |
-| `{type: "state"}` | Full game state sync for new clients                     |
-
-**Example move message:**
-
-```json
-{
-  "type": "move",
-  "move": { "from": "e2", "to": "e4", "piece": "p", "san": "e4" },
-  "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
-  "turn": "black",
-  "in_check": false,
-  "in_checkmate": false,
-  "in_draw": false
-}
-```
+- Frontend: Vercel or Netlify (static), free tiers available.
+- Backend (WebSocket/persistent): prefer Render, Fly.io, Railway, or a small VPS/Oracle Always Free VM — serverless platforms are not ideal for long-lived WebSockets.
+- For quick testing expose local backend via `ngrok` or Cloudflare Tunnel; secure endpoints with `API_KEY` when exposed to the internet.
 
 ---
 
-## 🧪 Example Game (Scholar’s Mate)
+## **Development Tips**
 
-```bash
-curl -X POST http://localhost:4000/white/move -H "Content-Type: application/json" -d '{"from":"e2","to":"e4"}'
-curl -X POST http://localhost:4000/black/move -H "Content-Type: application/json" -d '{"from":"e7","to":"e5"}'
-curl -X POST http://localhost:4000/white/move -H "Content-Type: application/json" -d '{"from":"d1","to":"h5"}'
-curl -X POST http://localhost:4000/black/move -H "Content-Type: application/json" -d '{"from":"b8","to":"c6"}'
-curl -X POST http://localhost:4000/white/move -H "Content-Type: application/json" -d '{"from":"f1","to":"c4"}'
-curl -X POST http://localhost:4000/black/move -H "Content-Type: application/json" -d '{"from":"g8","to":"f6"}'
-curl -X POST http://localhost:4000/white/move -H "Content-Type: application/json" -d '{"from":"h5","to":"f7"}'
-```
-
-Your frontend will automatically show 🏁 **Checkmate!**
+- Start backend first so the frontend can connect to WebSocket on load.
+- If the frontend cannot connect to WebSocket, check `VITE_BACKEND_WS` or that the backend's `PORT` is correct.
+- Use the simulator for rapid testing without hardware.
 
 ---
 
-## 🧠 System Flow
+## **Contributing**
 
-```
-Arduino (Sensors) 
-   ↓ JSON Move Data
-Backend (Express + Chess.js)
-   ↓ WebSocket
-Frontend (React)
-```
-
-1. Arduino sends `{from, to}` when a move is detected.
-2. Backend validates move with `chess.js`.
-3. Broadcasts updated `fen` and state to all connected clients.
-4. React frontend updates the board instantly.
+- Add issues / PRs. If you change API shapes, update `README.md` and frontend accordingly.
+- Keep commits focused to one area (backend/frontend/arduino) when possible.
 
 ---
 
-## ⚙️ Arduino Integration
-
-### 🔩 Components Needed
-
-| Component                       | Description                |
-| ------------------------------- | -------------------------- |
-| Arduino UNO / ESP32             | Reads board sensors        |
-| 64 Reed Switches / Hall Sensors | One under each square      |
-| Magnets in Chess Pieces         | Detects presence           |
-| Multiplexers (optional)         | Reduce pin count           |
-| USB Cable or Wi-Fi              | Communication with backend |
-
----
-
-### 🧲 Hardware Working Principle
-
-* Each square has a magnetic sensor.
-* When a piece is **lifted**, the sensor changes from “LOW → HIGH”.
-* When a piece is **placed**, it goes “HIGH → LOW”.
-* Arduino detects both squares — that gives the move:
-
-  ```
-  { "from": "e2", "to": "e4" }
-  ```
-* Then it automatically sends that move to your backend via Serial or Wi-Fi.
-
----
-
-### 🪄 Option 1: Serial Communication (via Node.js Bridge)
-
-Arduino sketch (`arduino_chess.ino`):
-
-```cpp
-#include <ArduinoJson.h>
-
-void setup() {
-  Serial.begin(9600);
-}
-
-void loop() {
-  // Example: mock sending move (you’ll replace this with actual sensors)
-  StaticJsonDocument<128> doc;
-  doc["from"] = "e2";
-  doc["to"] = "e4";
-  serializeJson(doc, Serial);
-  Serial.println();
-  delay(5000);  // Send every 5s for testing
-}
-```
-
-Node bridge (`serial-bridge.js`):
-
-```js
-import { SerialPort, ReadlineParser } from "serialport";
-import fetch from "node-fetch";
-
-const port = new SerialPort({ path: "/dev/ttyUSB0", baudRate: 9600 });
-const parser = port.pipe(new ReadlineParser({ delimiter: "\n" }));
-
-let turn = "white";
-
-parser.on("data", async (line) => {
-  try {
-    const data = JSON.parse(line);
-    console.log(`Move detected: ${data.from} → ${data.to}`);
-
-    await fetch(`http://localhost:4000/${turn}/move`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: data.from, to: data.to }),
-    });
-
-    turn = turn === "white" ? "black" : "white";
-  } catch (err) {
-    console.error("Parse error:", err);
-  }
-});
-```
-
-Run it:
-
-```bash
-node serial-bridge.js
-```
-
-Now physical moves are automatically sent to your backend and appear on your frontend.
-
----
-
-### 🌐 Option 2: ESP32 Wi-Fi Direct POST
-
-If using ESP32, send HTTP POST directly:
-
-```cpp
-#include <WiFi.h>
-#include <HTTPClient.h>
-
-const char* ssid = "YOUR_WIFI";
-const char* password = "YOUR_PASS";
-
-void setup() {
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) delay(500);
-}
-
-void loop() {
-  HTTPClient http;
-  http.begin("http://192.168.1.100:4000/white/move");
-  http.addHeader("Content-Type", "application/json");
-  http.POST("{\"from\":\"e2\",\"to\":\"e4\"}");
-  http.end();
-  delay(10000);
-}
-```
-
----
-
-## 🧰 Future Enhancements
-
-* 🪄 Auto-move endpoints (`/auto/move`)
-* 💾 Move history with undo/redo
-* 🎯 Move highlighting animations
-* ⚙️ Servo control for robotic piece movement
-* 🔉 Voice move announcements
-* ☁️ Cloud multiplayer support
-
----
-
-## 📜 License
+## **License**
 
 MIT © 2025 **Prashant Kumar**
