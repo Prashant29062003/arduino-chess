@@ -6,7 +6,11 @@ import { Chess } from "chess.js";
 const app = express();
 const PORT =  process.env.PORT || 4000;
 
-app.use(cors());
+const allowedOrigins = [process.env.FRONTEND_ORIGIN || "https://arduino-chess.vercel.app"]
+app.use(cors({ origin: (incomingOrigin, cb) => {
+  if(!incomingOrigin) return cb(null, true);
+  cb(null, allowedOrigins.includes(incomingOrigin));
+}}));
 app.use(express.json());
 
 const server = app.listen(PORT, () =>
