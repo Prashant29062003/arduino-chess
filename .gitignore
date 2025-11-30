@@ -1,0 +1,39 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+
+# Vite / build
+dist/
+build/
+.vite/
+
+# Env files (keep secrets local)
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Arduino (compiled artifacts)
+**/arduino/*.hex
+**/arduino/*.elf
+**/arduino/build/
+**/arduino/.pioenvs/
+
+# Mac/Linux swap / temp
+*.swp
+*~
+
+# Misc
+coverage/
