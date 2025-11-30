@@ -31,7 +31,7 @@ The system visualizes every chess move from your **physical chessboard** (via Ar
 
 ## 📁 Project Structure
 
-```
+
 chess-and-arduino/
 ├── backend/
 # ♟ Arduino Chessboard Live
@@ -60,7 +60,7 @@ cd frontend
 npm install
 npm run dev
 # open http://localhost:5173
-```
+
 
 ---
 
