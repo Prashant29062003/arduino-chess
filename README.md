@@ -130,6 +130,88 @@ Note: If you configure `API_KEY` in `backend/.env`, update the bridge and simula
 
 ---
 
+## **Simulating the Arduino (end-to-end)**
+
+Follow these steps to simulate Arduino events and verify they arrive at the backend and are reflected in the frontend. These instructions work both for a local backend and a deployed backend (e.g., Render at `https://arduino-chess.onrender.com`).
+
+1) Ensure backend is reachable
+
+Local (start the server):
+```bash
+cd backend
+npm run dev
+# or in production mode
+node server.js
+
+# verify
+curl http://localhost:4000/health
+```
+
+Deployed (Render):
+```bash
+curl https://arduino-chess.onrender.com/health
+```
+
+2) Use the simulator (recommended)
+
+The repo includes `backend/simulate-arduino.js` which posts `removed` and `placed` events and (optionally) executes the move endpoint.
+
+- Simulate locally against a local backend (default host `http://localhost:4000`):
+```bash
+cd backend
+node simulate-arduino.js --removed D7 --placed D6 --piece Pawn --execute
+```
+
+- Simulate against a deployed backend on Render:
+```bash
+cd backend
+node simulate-arduino.js --host https://arduino-chess.onrender.com --removed D7 --placed D6 --piece Pawn --execute
+```
+
+What `--execute` does: posts `removed` and `placed` events to `/arduino/event` then calls the appropriate `/white/move` or `/black/move` endpoint depending on server `turn`.
+
+3) Send a direct move (skip pairing)
+
+Use `curl` or any HTTP client to POST directly to the move endpoints. This is useful for quick tests:
+
+```bash
+curl -X POST https://arduino-chess.onrender.com/white/move \
+	-H "Content-Type: application/json" \
+	-d '{"from":"e2","to":"e4"}'
+```
+
+4) Verify the frontend updates
+
+- Local frontend (Vite): open `http://localhost:5173` and confirm the board updates after simulation.
+- Deployed frontend (Vercel): open `https://arduino-chess.vercel.app/` and confirm the move appears.
+
+Verification tips:
+- Browser Console: look for `Connected to WebSocket` and `♟ Move received:` logs.
+- Network → WebSockets: inspect incoming frames for `{ type: 'move' }` messages.
+- Backend logs: confirm the simulator POSTs and the backend's move handling.
+
+5) When `API_KEY` is enabled
+
+If `API_KEY` is set in `backend/.env` or in Render env vars, include the header `x-api-key: <value>` in simulator and bridge requests. Example with `curl`:
+
+```bash
+curl -X POST https://arduino-chess.onrender.com/white/move \
+	-H "Content-Type: application/json" \
+	-H "x-api-key: YOUR_API_KEY" \
+	-d '{"from":"e2","to":"e4"}'
+```
+
+6) Optional: simulate serial tokens or use the serial bridge
+
+If you want to test the serial bridge flow, run `serial-bridge.js` against a local Arduino or a virtual serial port. For most end-to-end tests, `simulate-arduino.js` is simpler and sufficient.
+
+Common troubleshooting
+- Frontend shows old board: confirm WebSocket connected and that backend broadcasted the move.
+- Simulator posts but server rejects move: check `/health` for `turn` and post to the correct endpoint (`/white/move` or `/black/move`).
+- No response: check backend logs and ensure the server is listening on the correct `PORT`.
+
+---
+
 ## **Git / Repo Guidance**
 
 - This project works well as a single repository (monorepo) containing `arduino`, `backend`, and `frontend` folders. It's simple for local dev and smaller teams.

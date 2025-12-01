@@ -66,3 +66,13 @@ The Arduino will use a state machine to manage the move detection and feedback:
 2.  Add an Arduino example sketch (`feedback_example.ino`) to parse the serial JSON reply and control the LEDs (Green, Red, Amber).
 
 The plan is ready for implementation. Do you confirm the plan and wish to proceed with the code patches using the suggested LED pins (GREEN=10, RED=11)?
+
+## Using serial-bridge on the same laptop
+
+Short recommended workflow for your described setup (frontend/backend online, Arduino local)
+
+- If using UNO/Nano/legacy Arduino: use serial-bridge on the same laptop; it's easiest. Run:
+    - node [serial-bridge.js](http://_vscodecontentref_/9) --port COM3 --baud 9600 --host https://arduino-chess.onrender.com
+- If using ESP32: deploy the backend and set api_key, then flash ESP32 with the HTTP example pointing to https://arduino-chess.onrender.com with the API key.
+- Verify by running simulator first to be sure backend and frontend work before connecting hardware:
+    - node [simulate-arduino.js](http://_vscodecontentref_/10) --host https://arduino-chess.onrender.com --removed D7 --placed D6 --execute
