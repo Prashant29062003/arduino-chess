@@ -67,12 +67,85 @@ The Arduino will use a state machine to manage the move detection and feedback:
 
 The plan is ready for implementation. Do you confirm the plan and wish to proceed with the code patches using the suggested LED pins (GREEN=10, RED=11)?
 
+## What Code to Copy to Another Laptop?
+
+**Scenario 1: Run Simulator (no hardware, just testing moves)**
+
+Copy only:
+```
+backend/
+  ├── package.json
+  ├── package-lock.json
+  ├── simulate-arduino.js
+  └── (run npm install on new laptop)
+```
+
+Command on new laptop:
+```bash
+cd backend
+npm install
+node simulate-arduino.js --host https://arduino-chess.onrender.com --removed D7 --placed D6 --execute
+```
+
+Result: Opens browser to `https://arduino-chess.vercel.app` and sees board update.
+
+---
+
+**Scenario 2: Connect Physical Arduino (with hardware)**
+
+Copy:
+```
+backend/
+  ├── package.json
+  ├── package-lock.json
+  ├── serial-bridge.js
+  └── (run npm install on new laptop)
+
+arduino/
+  └── shatranjbot.ino (for reference only; code stays flashed on board)
+```
+
+Command on new laptop:
+```bash
+cd backend
+npm install
+node serial-bridge.js --port COM3 --baud 9600 --host https://arduino-chess.onrender.com
+```
+
+Result: Reads Arduino USB → POSTs to backend → browser shows updates.
+
+---
+
+**Scenario 3: Run Everything Locally (offline demo)**
+
+Copy entire `backend/` and `frontend/` folders, then:
+
+```bash
+# Terminal 1: Start backend
+cd backend && npm install && node server.js
+
+# Terminal 2: Start frontend
+cd frontend && npm install && npm run dev
+```
+
+Result: Backend on `http://localhost:4000`, frontend on `http://localhost:5173`. Works offline.
+
+---
+
+**Recommended for teacher demo:** Use Scenario 1 (Simulator only).
+- Copy `backend/` folder (~10-50 MB with node_modules, or ~100 KB without).
+- Run `npm install`.
+- Run the simulator command.
+- No need to copy frontend — it's already on Vercel.
+
+---
+
 ## Using serial-bridge on the same laptop
 
 Short recommended workflow for your described setup (frontend/backend online, Arduino local)
 
 - If using UNO/Nano/legacy Arduino: use serial-bridge on the same laptop; it's easiest. Run:
-    - node [serial-bridge.js](http://_vscodecontentref_/9) --port COM3 --baud 9600 --host https://arduino-chess.onrender.com
+    - `node serial-bridge.js --port COM3 --baud 9600 --host https://arduino-chess.onrender.com`
 - If using ESP32: deploy the backend and set api_key, then flash ESP32 with the HTTP example pointing to https://arduino-chess.onrender.com with the API key.
 - Verify by running simulator first to be sure backend and frontend work before connecting hardware:
-    - node [simulate-arduino.js](http://_vscodecontentref_/10) --host https://arduino-chess.onrender.com --removed D7 --placed D6 --execute
+    - `node simulate-arduino.js --host https://arduino-chess.onrender.com --removed D7 --placed D6 --execute`

@@ -4,6 +4,106 @@ Short: A compact, teacher-friendly workflow with three demonstration modes (Quic
 
 ---
 
+## Understanding the Architecture (IMPORTANT)
+
+**Where does each piece of code run?**
+
+1. **Arduino Code** (`arduino/shatranjbot.ino` or your custom sketch)
+   - Runs ON the Arduino board itself (flashed via Arduino IDE).
+   - The Arduino reads physical sensors and prints tokens like `REMOVED:E2:Pawn` or `PLACED:E4:Pawn` to its serial port.
+   - You flash this code **once** to the board; it stays there and runs automatically when the board powers on.
+   - Do NOT run this in VS Code.
+
+2. **Backend Code** (`backend/server.js`)
+   - Runs on a server (either Render.com deployed OR locally on your laptop).
+   - This is the authoritative game engine (uses chess.js for move validation).
+   - To run locally: `node server.js` or `npm run dev` in VS Code terminal.
+   - If deployed to Render, it runs on Render's servers (not your laptop).
+
+3. **Frontend Code** (`frontend/src/App.jsx`, etc.)
+   - Runs in the browser (either on Vercel deployed OR locally on your laptop).
+   - This is the UI that displays the chessboard.
+   - To run locally: `npm run dev` in VS Code terminal → opens on `http://localhost:5173`.
+   - If deployed to Vercel, it runs on Vercel's servers (not your laptop).
+
+4. **Simulator** (`backend/simulate-arduino.js`)
+   - A testing tool that **simulates** Arduino events WITHOUT needing real hardware.
+   - Runs in VS Code terminal: `node simulate-arduino.js --host ... --removed D7 --placed D6 --execute`.
+   - You run this **multiple times** for testing different moves.
+   - This is NOT the Arduino code — it's a helper script to test the backend without physical hardware.
+
+5. **Serial Bridge** (`backend/serial-bridge.js`)
+   - Bridges the physical Arduino to the backend.
+   - Runs in VS Code terminal on your laptop (same machine as the Arduino via USB).
+   - Reads tokens from Arduino serial port and POSTs them to the backend (local or deployed).
+   - You run this **once per demo session** and keep it running.
+
+**Simple Flow Diagram:**
+
+```
+Physical Scenario: Arduino on desk → USB to laptop
+                        ↓
+                  [serial-bridge.js]
+                   (runs in VS Code)
+                        ↓
+                  [Deployed Backend]
+                  (Render.com: always on)
+                        ↓
+                  [Deployed Frontend]
+                  (Vercel: browser opens)
+                        ↓
+                   Teacher sees
+                  board update in
+                     real-time
+
+Testing Scenario: No hardware needed
+                        ↓
+                [simulate-arduino.js]
+                 (runs in VS Code)
+                        ↓
+                [Deployed Backend]
+                (Render.com: always on)
+                        ↓
+                [Deployed Frontend]
+                (Vercel: browser opens)
+                        ↓
+                  Teacher sees
+                  board update in
+                     real-time
+```
+
+---
+
+## Common Questions Answered
+
+**Q: Do I need to run `node simulate-arduino.js` every time?**
+- A: Only for testing/demoing moves without physical hardware. If you have an Arduino connected, you use the serial-bridge instead (run once and leave it).
+
+**Q: Do I need backend and frontend code locally if they're deployed to Render and Vercel?**
+- A: **No, you don't need to run them locally** if they're already deployed. But you DO need the backend folder locally (in VS Code) to run the simulator or serial-bridge (they are Node scripts). You only run the backend locally if testing offline.
+
+**Q: Which file do I edit the most?**
+- Arduino code: edit once, flash once, runs forever on the board.
+- Backend/Frontend: edit in VS Code, test locally or push to GitHub to auto-deploy.
+- Simulator: run as-is; no edits needed (it's a pre-made testing tool).
+
+**Q: So for the teacher demo, what do I actually run?**
+
+1. **If using Arduino hardware:**
+   - Flash the Arduino code to the board once (done before the demo).
+   - On your laptop, run the serial-bridge: `node serial-bridge.js --port COM3 --baud 9600 --host https://arduino-chess.onrender.com`.
+   - Open the browser to https://arduino-chess.vercel.app (deployed frontend).
+   - Move pieces on the physical board; the bridge relays events to the backend; the frontend updates.
+   - No simulator needed.
+
+2. **If testing without Arduino (no hardware available):**
+   - Run the simulator in VS Code: `node simulate-arduino.js --host https://arduino-chess.onrender.com --removed D7 --placed D6 --execute`.
+   - Open the browser to https://arduino-chess.vercel.app (deployed frontend).
+   - Run the simulator again for each test move.
+   - Repeat as needed.
+
+---
+
 ## Pre-Demo Checklist
 - Install dependencies: `cd backend && npm install`, `cd frontend && npm install`
 - Set environment variables:
